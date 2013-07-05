@@ -55,6 +55,7 @@
    This work has been partly funded by French Agence Nationale de la Recherche under contract ANR-09-VERS-017 ARESA2
  ---------------------------------------------------------------------------------------------------------------------------------------------------------------*/
  
+#include <SoftwareSerial.h>
 #include <IPv6Stack.h>
 #include <XBeeMACLayer.h>
 
@@ -163,6 +164,15 @@ void setup(){
   Serial.println(mem());
   delay(100);
   
+  //SoftwareSerial on 51,50 (e.g. Seeed XBee Shield v1 with both switches left)
+  SoftwareSerial ser(51,50);
+  ser.begin(9600);
+  macLayer.xbee.setSerial(ser);
+  
+  //Serial
+  //Serial.begin(9600);
+  //macLayer.xbee.setSerial(Serial);
+
   // init network-device
   if (!IPv6Stack::initMacLayer(&macLayer)){
     Serial.println("CANNOT INITIALIZE XBEE MODULE.. CANNOT CONTINUE");
