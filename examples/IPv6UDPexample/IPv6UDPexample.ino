@@ -164,14 +164,18 @@ void setup(){
   Serial.println(mem());
   delay(100);
   
-  //SoftwareSerial on 51,50 (e.g. Seeed XBee Shield v1 with both switches left)
-  SoftwareSerial ser(51,50);
-  ser.begin(9600);
-  macLayer.setSerial(ser);
+  //SoftwareSerial on 51,50 (e.g. Seeed XBee Shield v1 on Mega with both switches left)
+  //SoftwareSerial ser(51,50);
+  //ser.begin(9600);
+  //macLayer.setSerial(ser);
   
   //Serial
   //Serial.begin(9600);
   //macLayer.setSerial(Serial);
+
+  //Serial1
+  Serial1.begin(9600);
+  macLayer.setSerial(Serial1);
 
   // init network-device
   if (!IPv6Stack::initMacLayer(&macLayer)){
