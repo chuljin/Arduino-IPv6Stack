@@ -1,17 +1,17 @@
 /*
   Arduino IPv6 stack example
- 
+
  This sketch connects two Arduino Mega with wireless shield and Xbee
  mounted. This sketch demonstrates use of the IPv6 stack library.
- 
+
  Circuit:
  * Arduino Mega 2560
  * Wireless shield w/ Xbee Series 1
- 
+
  created 29 June 2012
  by Alejandro Lampropulos (alejandro.lampropulos@telecom-bretagne.eu)
  Telecom Bretagne Rennes, France
- 
+
  Redistribution and use in source and binary forms, with or without
  modification, are permitted provided that the following conditions
  are met:
@@ -35,18 +35,18 @@
  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  SUCH DAMAGE.
- 
+
  /*---------------------------------------------------------------------------------------------------------------------------------------------------------------
    This example test the interoperability of different Arduino Mega + Xbee S1 to send messages and respond them inverted.
    The example was tested within a scenario of 4 nodes (a root, an intermediate router node, and two leaves):
-   
+
          O
         / \
        O   O
       /
      O
-   
-   In this case, the start sending multicast messages and respond to received messages with the data inverted. 
+
+   In this case, the start sending multicast messages and respond to received messages with the data inverted.
    If they get a prefix from a DIO, they change the prefix of the source ip address of the message received and they send it to that address, inverted.
    This allows to see the routing of the router nodes.
    In case the device is an intermediate router, it will not send broadcast messages but it will answer to received messages (only if it has already got a prefix)
@@ -54,10 +54,11 @@
 
    This work has been partly funded by French Agence Nationale de la Recherche under contract ANR-09-VERS-017 ARESA2
  ---------------------------------------------------------------------------------------------------------------------------------------------------------------*/
- 
+
 #include <SoftwareSerial.h>
 #include <IPv6Stack.h>
 #include <XBeeMACLayer.h>
+#include <XBee.h>
 
 #define IS_INTERMEDIATE_ROUTER  (UIP_CONF_ROUTER && 0)// FOR INTERMEDIATE ROUTERS: 1, FOR NODES: 0 -> UIP_CONF_ROUTER MUST BE 1
 
@@ -72,7 +73,7 @@ int mem(){
   uint8_t * heapptr, * stackptr;
   stackptr = (uint8_t *)malloc(4);
   heapptr = stackptr;
-  free(stackptr);               
+  free(stackptr);
   stackptr = (uint8_t *)(SP);
   return stackptr - heapptr;
 }
@@ -114,7 +115,7 @@ bool change_addr_prefix(IPv6Address &address){
 }
 
 //This is what we will run as a result of receiving a UDP message. We first use the serial port to show what we received, wait half of the sending time and send the response to the sender that is, actually, the same message inverted
-void udp_callback(char *data, int datalen, int sender_port, IPv6Address &sender_addr){  
+void udp_callback(char *data, int datalen, int sender_port, IPv6Address &sender_addr){
   Serial.println(mem());
   delay(100);
   //Show received dada
@@ -122,7 +123,7 @@ void udp_callback(char *data, int datalen, int sender_port, IPv6Address &sender_
   Serial.println();
   Serial.println();
   Serial.print("Data received from ip: ");
-  sender_addr.print();  
+  sender_addr.print();
   Serial.print(" port: ");
   Serial.print(sender_port);
   Serial.print(", data: ");
@@ -132,22 +133,22 @@ void udp_callback(char *data, int datalen, int sender_port, IPv6Address &sender_
      Serial.print(IPv6Stack::readUdpData());
   }
   Serial.println();
-        
+
     //In case we have been given a prefix by a router and we have validated our global address, change the address of the sender by changing its prefix. It is related to the same router, messages will go through it
   if (!change_addr_prefix(sender_addr)){
     #if IS_INTERMEDIATE_ROUTER // routers do not respond until they have their prefix (Border Routers never respond)
     return;
     #endif
   }
-    
+
   delay(SEND_INTERVAL/2);//take SEND_INTERVAL/2 to respond
 
   Serial.println("Sending response..");
-  Serial.println(); 
-  delay(50); 
+  Serial.println();
+  delay(50);
   int j;
   for(j=0; j<datalen; ++j){
-    udp_send[datalen-1-j] = data[j]; 
+    udp_send[datalen-1-j] = data[j];
   }
   addr_dest = sender_addr; //now if our message is not responded, it will be resent from the main loop to the same destination
   dest_port = sender_port;
@@ -156,19 +157,19 @@ void udp_callback(char *data, int datalen, int sender_port, IPv6Address &sender_
   send_timer.restart();//each time we receive something we reset this timer so we should not send in the main loop as long as our message is responded
 }
 
-void setup(){  
+void setup(){
   Serial.begin(9600);
   delay(1000);
   Serial.println();
   Serial.print("MEMORY LEFT:");
   Serial.println(mem());
   delay(100);
-  
+
   //SoftwareSerial on 51,50 (e.g. Seeed XBee Shield v1 on Mega with both switches left)
   //SoftwareSerial ser(51,50);
   //ser.begin(9600);
   //macLayer.setSerial(ser);
-  
+
   //Serial
   //Serial.begin(9600);
   //macLayer.setSerial(Serial);
@@ -182,41 +183,41 @@ void setup(){
     Serial.println("CANNOT INITIALIZE XBEE MODULE.. CANNOT CONTINUE");
     while (true){};
   }
-  
+
   //init IP Stack
-  IPv6Stack::initIpStack();  
+  IPv6Stack::initIpStack();
   Serial.println("IPV6 INITIALIZED");
   delay(100);
-  
+
   //init UDP
   IPv6Stack::initUdp(UDP_PORT);
   Serial.println("UDP INITIALIZED");
   delay(100);
-  
+
   //If Border Router, set prefix. If not, set a timer to send data
   #if !IS_BORDER_ROUTER
       send_timer.set(SEND_INTERVAL);
       Serial.println("SEND TIMER SET");
-      delay(50);      
+      delay(50);
   #else
-      //This line is added to specify our prefix    
-      IPv6Stack::setPrefix(prefix, 64); 
+      //This line is added to specify our prefix
+      IPv6Stack::setPrefix(prefix, 64);
   #endif /*IS_BORDER_ROUTER*/
-  
+
   Serial.println("SETUP FINISHED!");
   delay(100);
 }
 
 void loop(){
   //Always need to poll timers in order to make the IPv6 Stack work
-  IPv6Stack::pollTimers();  
+  IPv6Stack::pollTimers();
   //If we are not a router (any kind), we also send messages
 #if !UIP_CONF_ROUTER
   if (send_timer.expired()){
       send_timer.reset();
       Serial.println();
       Serial.println("Sending data..");
-      delay(50);   
+      delay(50);
       IPv6Stack::udpSend(addr_dest, dest_port, "0123456789", 10);
   }
 #endif
